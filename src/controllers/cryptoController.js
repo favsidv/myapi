@@ -1,4 +1,6 @@
 const coingeckoService = require('../services/coingeckoService');
+const { exec } = require('child_process');
+const path = require('path');
 
 class CryptoController {
   
@@ -201,6 +203,115 @@ class CryptoController {
           timestamp: new Date().toISOString()
         }
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAaveMorphoRecommendation(req, res, next) {
+    try {
+      // D'abord, récupérer toutes les métriques nécessaires pour le modèle Python
+      const [globalData, defiData, exchanges, stablecoinPrices] = await Promise.all([
+        coingeckoService.getGlobalData(),
+        coingeckoService.getDefiData(),
+        coingeckoService.getExchanges(),
+        coingeckoService.getSimplePrices(['tether', 'usd-coin'])
+      ]);
+
+      const btcDominance = globalData.data.market_cap_percentage.btc;
+      const defiTvl = defiData.data.defi_market_cap;
+
+      const dexNames = ['uniswap', 'pancakeswap', 'sushiswap', 'curve', '1inch', 'dydx'];
+      let cexVolume = 0;
+      let dexVolume = 0;
+      
+      exchanges.forEach(exchange => {
+        const isDex = dexNames.some(dexName => 
+          exchange.id.toLowerCase().includes(dexName) || 
+          exchange.name.toLowerCase().includes(dexName)
+        );
+        
+        if (isDex) {
+          dexVolume += exchange.trade_volume_24h_btc || 0;
+        } else {
+          cexVolume += exchange.trade_volume_24h_btc || 0;
+        }
+      });
+
+      const usdtPrice = stablecoinPrices.tether.usd;
+      const usdcPrice = stablecoinPrices['usd-coin'].usd;
+
+      // Préparer les données dans le format attendu par le modèle Python
+      const modelInput = {
+        btc_dominance: { value: btcDominance },
+        defi_tvl: { value: defiTvl },
+        volumes: {
+          cex_24h_btc: cexVolume,
+          dex_24h_btc: dexVolume
+        },
+        stablecoins: {
+          usdt: { deviation: `${((usdtPrice - 1) * 100).toFixed(3)}%` },
+          usdc: { deviation: `${((usdcPrice - 1) * 100).toFixed(3)}%` }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Créer un endpoint temporaire pour servir les données au modèle Python
+      const tempApiData = JSON.stringify({
+        success: true,
+        data: modelInput
+      });
+
+      // Exécuter le modèle Python avec les données
+      const pythonScript = path.join(__dirname, '../../model.py');
+      const tempApiUrl = `${req.protocol}://${req.get('host')}/api/temp-model-data`;
+      
+      return new Promise((resolve, reject) => {
+        // Stocker temporairement les données pour le modèle
+        req.app.locals.tempModelData = tempApiData;
+        
+        exec(`source venv/bin/activate && python ${pythonScript} ${tempApiUrl}`, (error, stdout, stderr) => {
+          if (error) {
+            console.error('Python execution error:', error);
+            return reject(error);
+          }
+          
+          if (stderr) {
+            console.error('Python stderr:', stderr);
+            return reject(new Error(stderr));
+          }
+          
+          try {
+            const recommendation = JSON.parse(stdout);
+            
+            res.json({
+              success: true,
+              data: recommendation,
+              timestamp: new Date().toISOString(),
+              source: 'aave-morpho-model'
+            });
+            
+            // Nettoyer les données temporaires
+            delete req.app.locals.tempModelData;
+            resolve();
+          } catch (parseError) {
+            reject(parseError);
+          }
+        });
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getTempModelData(req, res, next) {
+    try {
+      if (req.app.locals.tempModelData) {
+        res.json(JSON.parse(req.app.locals.tempModelData));
+      } else {
+        res.status(404).json({ success: false, error: 'No temporary data available' });
+      }
     } catch (error) {
       next(error);
     }

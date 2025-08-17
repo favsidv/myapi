@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const config = require('./config/config');
 const cryptoRoutes = require('./routes/cryptoRoutes');
+const flareRoutes = require('./routes/flareRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -37,6 +38,7 @@ if (config.nodeEnv === 'development') {
 }
 
 app.use('/api', cryptoRoutes);
+app.use('/flare', flareRoutes);
 
 app.get('/', (req, res) => {
   res.json({
@@ -50,7 +52,14 @@ app.get('/', (req, res) => {
         'GET /api/volumes': 'Volumes CEX/DEX 24h',
         'GET /api/stablecoin-peg': 'Prix USDT/USDC et déviation du peg',
         'GET /api/eth-staking': 'Informations sur le staking Ethereum',
-        'GET /api/all-metrics': 'Toutes les métriques en une seule requête'
+        'GET /api/all-metrics': 'Toutes les métriques en une seule requête',
+        'GET /api/aave-morpho-recommendation': 'Recommandation Aave vs Morpho'
+      },
+      flare: {
+        'POST /flare/generate-and-submit': 'Générer et soumettre une recommandation au FDC',
+        'GET /flare/attested-recommendation': 'Récupérer les données attestées',
+        'GET /flare/network-status': 'Statut du réseau Flare',
+        'GET /flare/docs': 'Documentation complète de l\'API Flare'
       }
     },
     timestamp: new Date().toISOString()

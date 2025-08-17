@@ -11,6 +11,8 @@ Cette API récupère et centralise les données suivantes :
 - **Volumes CEX/DEX** : Volumes d'échange 24h sur les exchanges centralisés et décentralisés
 - **Peg Stablecoins** : Prix et déviation du peg pour USDT et USDC
 - **ETH Staking** : Informations sur le staking Ethereum (données limitées)
+- **Recommandations Aave vs Morpho** : Modèle IA pour recommander le meilleur protocole DeFi
+- **Intégration Flare FDC** : Attestation des données on-chain via Flare Data Connector
 
 ## 📦 Installation
 
@@ -67,6 +69,13 @@ L'API sera disponible sur `http://localhost:3000`
 - `GET /api/stablecoin-peg` - Prix USDT/USDC et déviation du peg
 - `GET /api/eth-staking` - Informations sur le staking Ethereum
 - `GET /api/all-metrics` - Toutes les métriques en une seule requête
+- `GET /api/aave-morpho-recommendation` - Recommandation intelligente Aave vs Morpho
+
+### Endpoints Flare Data Connector
+- `POST /flare/generate-and-submit` - Soumettre une recommandation au FDC
+- `GET /flare/attested-recommendation` - Récupérer les données attestées
+- `GET /flare/contract/recommendation` - Recommandation depuis le smart contract
+- `GET /flare/docs` - Documentation complète de l'API Flare
 
 ## 📖 Exemples d'utilisation
 
@@ -107,6 +116,28 @@ curl http://localhost:3000/api/stablecoin-peg
 curl http://localhost:3000/api/all-metrics
 ```
 
+### Recommandation Aave vs Morpho
+```bash
+curl http://localhost:3000/api/aave-morpho-recommendation
+```
+
+Réponse :
+```json
+{
+  "success": true,
+  "data": {
+    "suggestion": "AAVE",
+    "confidence": 0.87,
+    "scores": {
+      "aave": 0.87,
+      "morpho": 0.43
+    },
+    "btc_dominance_pct": 57.7,
+    "defi_tvl_usd": 157298590902.85
+  }
+}
+```
+
 ## ⚙️ Configuration
 
 ### Variables d'environnement
@@ -115,6 +146,8 @@ curl http://localhost:3000/api/all-metrics
 - `COINGECKO_API_URL` : URL de base de l'API CoinGecko
 - `CACHE_TTL` : Durée de cache en secondes (défaut: 300 = 5 minutes)
 - `NODE_ENV` : Environnement (development/production)
+- `FLARE_RPC_URL` : URL RPC pour le réseau Flare (optionnel)
+- `PRIVATE_KEY` : Clé privée pour les interactions blockchain (optionnel)
 
 ### Cache
 
@@ -139,6 +172,13 @@ crypto-api/
 ├── package.json
 ├── .env.example
 ├── .gitignore
+├── model.py                       # Modèle Python Aave vs Morpho
+├── contracts/AaveMorphoOracle.sol # Smart contract Flare
+├── scripts/deploy.js              # Script de déploiement
+├── venv/                          # Environnement virtuel Python
+├── start-with-python.sh           # Script de démarrage
+├── QUICK_START.md                 # Guide de démarrage rapide
+├── FLARE_INTEGRATION_GUIDE.md     # Guide complet Flare
 └── README.md
 ```
 
@@ -157,6 +197,8 @@ CoinGecko ne fournit pas directement le yield de staking ETH. L'endpoint retourn
 ### Scripts disponibles
 ```bash
 npm start        # Démarrer en production
+npm run dev      # Démarrer en mode développement
+./start-with-python.sh  # Démarrer avec environnement Python (recommandé)
 npm run dev      # Démarrer en développement avec nodemon
 npm test         # Lancer les tests (à implémenter)
 ```

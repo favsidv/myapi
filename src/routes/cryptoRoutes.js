@@ -15,6 +15,10 @@ router.get('/eth-staking', cryptoController.getEthStakingYield);
 
 router.get('/all-metrics', cryptoController.getAllMetrics);
 
+router.get('/aave-morpho-recommendation', cryptoController.getAaveMorphoRecommendation);
+
+router.get('/temp-model-data', cryptoController.getTempModelData);
+
 router.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -26,7 +30,8 @@ router.get('/health', (req, res) => {
       '/api/volumes',
       '/api/stablecoin-peg',
       '/api/eth-staking',
-      '/api/all-metrics'
+      '/api/all-metrics',
+      '/api/aave-morpho-recommendation'
     ]
   });
 });
